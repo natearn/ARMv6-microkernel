@@ -6,7 +6,15 @@ _start:
 	bl main
 
 /* don't call this, for reference only */
-.type _fun, %function
-.global _fun
-_fun:
-	nop
+.type activeate, %function
+.global activate
+activate:
+	/* first set the stack pointer */
+	msr CPSR_c, #0xDF
+	mov sp, r1
+	msr CPSR_c, #0xD3
+	/* then switch to user mode and run the program */
+	mov r2, #0x10  /* This magic number has the right bit set for user mode */
+	msr SPSR, r2
+	mov lr, r0 /* Load the address of first into lr */
+	movs pc, lr
