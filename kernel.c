@@ -1,6 +1,8 @@
 #include "versatilepb.h"
 #include "asm.h"
 
+#define STACK_SIZE 10000
+
 void bwputs(char *s) {
 	while(*s) {
 		while(*(UART0 + UARTFR) & UARTFR_TXFF);
@@ -16,10 +18,9 @@ int first(void) {
 }
 
 int main(void) {
-	size_t stack_size = 10000;
-	unsigned int user_stack[stack_size];
+	unsigned int user_stack[STACK_SIZE];
 
-	activate(&first, user_stack + stack_size);
+	activate(&first, user_stack + STACK_SIZE);
 
 	while(1); /* We can't exit, there's nowhere to go */
 	return 0;
