@@ -16,14 +16,11 @@ int first(void) {
 }
 
 int main(void) {
-	char *string = "Hello, World!\n";
-	size_t stack_size = 1000;
+	size_t stack_size = 10000;
 	unsigned int user_stack[stack_size];
-	while(*string) {
-		*(volatile char *)0x101f1000 = *string;
-		string++;
-	}
+
 	activate(&first, user_stack + stack_size);
+
 	while(1); /* We can't exit, there's nowhere to go */
 	return 0;
 }
