@@ -9,12 +9,22 @@ _start:
 .type activeate, %function
 .global activate
 activate:
-	/* first set the stack pointer */
-	msr CPSR_c, #0xDF
-	mov sp, r1
-	msr CPSR_c, #0xD3
-	/* then switch to user mode and run the program */
-	mov r2, #0x10  /* This magic number has the right bit set for user mode */
+	/* r0 is the user mode stack pointer */
+	/* #0x10 is the magic number that has the right bit set for user mode */
+	/* ldmfd r0!, {r1,r2,...} <- Same as pop, but use r0 as the stack pointer */
+
+	/* first restore named registers */
+	ldmfd r0!, {r1,r2} /* pc, SPSR */
+	mov lr, r1
 	msr SPSR, r2
-	mov lr, r0 /* Load the address of first into lr */
+
+	/* now set the stack pointer in system mode (which is shared with user mode) and restore the numbered registers */
+	msr CPSR_c, #0xDF /* system mode */
+	mov sp, r0
+	pop {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r14}
+	msr CPSR_c, #0xD3 /* supervisor mode */
+
+	/* finally switch to user mode and run the program */
 	movs pc, lr
+
+/* loop: b loop */

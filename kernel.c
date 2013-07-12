@@ -20,7 +20,9 @@ int first(void) {
 int main(void) {
 	unsigned int user_stack[STACK_SIZE];
 
-	activate(&first, user_stack + STACK_SIZE);
+	user_stack[STACK_SIZE-16] = &first; /* (pc) program counter */
+	user_stack[STACK_SIZE-15] = 0x10;   /* (SPSR) saved state */
+	activate(user_stack + STACK_SIZE - 16);
 
 	while(1); /* We can't exit, there's nowhere to go */
 	return 0;
