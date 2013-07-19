@@ -2,10 +2,38 @@
    the _start label is used by the linker as the entry point for the program */
 .global _start
 _start:
+
+	/* set up the interrupt handler */
+	mov r0, #0x08
+	ldr r1, instr
+	ldr r2, addr
+	str r1, [r0, #0x0]
+	str r2, [r0, #0x4]
+
+	/* set the stack pointer */
 	ldr sp, =0x07FFFFFF
+
+	/* run the kernel */
 	bl main
 
-/* don't call this, for reference only */
+	/* helpers */
+	instr: ldr pc, addr
+	addr: .word handler
+
+handler:
+	/* save the user mode state */
+	msr CPSR_c, #0xDF /* system mode */
+	push {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
+	mov r0, sp
+	msr CPSR_c, #0xD3 /* supervisor mode */
+	mov r1, lr
+	mrs r2, SPSR
+	stmfd r0!, {r1,r2}
+
+	b activate
+	loop: b loop
+
+/* entering user mode */
 .type activeate, %function
 .global activate
 activate:
@@ -21,7 +49,7 @@ activate:
 	/* now set the stack pointer in system mode (which is shared with user mode) and restore the numbered registers */
 	msr CPSR_c, #0xDF /* system mode */
 	mov sp, r0
-	pop {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r14}
+	pop {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
 	msr CPSR_c, #0xD3 /* supervisor mode */
 
 	/* finally switch to user mode and run the program */
