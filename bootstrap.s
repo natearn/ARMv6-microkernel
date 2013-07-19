@@ -27,4 +27,9 @@ activate:
 	/* finally switch to user mode and run the program */
 	movs pc, lr
 
-/* loop: b loop */
+.type yield, %function
+.global yield
+yield:
+	svc #0x0
+	bx lr
+

@@ -11,16 +11,19 @@ void bwputs(char *s) {
 	}
 }
 
-int first(void) {
-	bwputs("busy-wait put string");
-	while(1);
+int my_user_process(void) {
+	while(1) {
+		bwputs("print and yield");
+		yield();
+	}
 	return 0;
 }
 
 int main(void) {
 	unsigned int user_stack[STACK_SIZE];
 
-	user_stack[STACK_SIZE-16] = &first; /* (pc) program counter */
+	/* this is necessary to run something in user mode */
+	user_stack[STACK_SIZE-16] = &my_user_process; /* (pc) program counter */
 	user_stack[STACK_SIZE-15] = 0x10;   /* (SPSR) saved state */
 	activate(user_stack + STACK_SIZE - 16);
 
