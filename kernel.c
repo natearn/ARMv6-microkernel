@@ -13,7 +13,7 @@ void bwputs(char *s) {
 
 int my_user_process(void) {
 	while(1) {
-		bwputs("print and yield");
+		bwputs("yield");
 		yield();
 	}
 	return 0;
@@ -21,11 +21,16 @@ int my_user_process(void) {
 
 int main(void) {
 	unsigned int user_stack[STACK_SIZE];
+	unsigned int *x;
 
 	/* this is necessary to run something in user mode */
 	user_stack[STACK_SIZE-16] = &my_user_process; /* (pc) program counter */
 	user_stack[STACK_SIZE-15] = 0x10;   /* (SPSR) saved state */
-	activate(user_stack + STACK_SIZE - 16);
+	x = activate(user_stack + STACK_SIZE - 16);
+	while(1) {
+		bwputs("activate");
+		x = activate(x);
+	}
 
 	while(1); /* We can't exit, there's nowhere to go */
 	return 0;
