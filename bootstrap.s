@@ -18,18 +18,22 @@ _start:
 
 	/* helpers */
 	instr: ldr pc, addr
-	addr: .word handler
+	addr: .word interrupt_handler
 
-handler:
-	/* save the user mode state */
-	msr CPSR_c, #0xDF /* system mode */
-	push {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
-	mov r0, sp
-	msr CPSR_c, #0xD3 /* supervisor mode */
-	mov r1, lr
-	mrs r2, SPSR
-	stmfd r0!, {r1,r2}
+interrupt_handler:
+	save_user_state:
+		msr CPSR_c, #0xDF /* system mode */
+		push {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
+		mov r0, sp
+		msr CPSR_c, #0xD3 /* supervisor mode */
+		mov r1, lr
+		mrs r2, SPSR
+		stmfd r0!, {r1,r2}
 
+	restore_kernel_state:
+		pop {r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
+
+	bx lr
 	b activate
 	loop: b loop
 
@@ -41,16 +45,20 @@ activate:
 	/* #0x10 is the magic number that has the right bit set for user mode */
 	/* ldmfd r0!, {r1,r2,...} <- Same as pop, but use r0 as the stack pointer */
 
-	/* first restore named registers */
-	ldmfd r0!, {r1,r2} /* pc, SPSR */
-	mov lr, r1
-	msr SPSR, r2
+	save_kernel_state:
+		push {r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
 
-	/* now set the stack pointer in system mode (which is shared with user mode) and restore the numbered registers */
-	msr CPSR_c, #0xDF /* system mode */
-	mov sp, r0
-	pop {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
-	msr CPSR_c, #0xD3 /* supervisor mode */
+	restore_user_state:
+		/* first restore named registers */
+		ldmfd r0!, {r1,r2} /* pc, SPSR */
+		mov lr, r1
+		msr SPSR, r2
+
+		/* now set the stack pointer in system mode (which is shared with user mode) and restore the numbered registers */
+		msr CPSR_c, #0xDF /* system mode */
+		mov sp, r0
+		pop {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
+		msr CPSR_c, #0xD3 /* supervisor mode */
 
 	/* finally switch to user mode and run the program */
 	movs pc, lr
