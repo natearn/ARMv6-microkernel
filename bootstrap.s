@@ -8,7 +8,7 @@ _start:
 	ldr r1, instr
 	ldr r2, addr
 	str r1, [r0, #0x0]
-	str r2, [r0, #0x4]
+	str r2, [r0, #0x4] /* the address of the interrupt handler needs to be stored at a known location */
 
 	/* set the stack pointer */
 	ldr sp, =0x07FFFFFF
@@ -66,6 +66,17 @@ activate:
 .type yield, %function
 .global yield
 yield:
+	push {r7}
+	ldr r7 ,=yield
 	svc #0x0
+	pop {r7}
 	bx lr
 
+.type fork, %function
+.global fork
+fork:
+	push {r7}
+	ldr r7 ,=fork
+	svc #0x0
+	pop {r7}
+	bx lr
