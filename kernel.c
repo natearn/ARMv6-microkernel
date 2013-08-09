@@ -3,7 +3,7 @@
 #include "asm.h"
 
 #define NUM_STACKS 10
-#define STACK_SIZE 1000
+#define STACK_SIZE 1024
 
 void bwputs(char *s) {
 	while(*s) {
@@ -13,18 +13,29 @@ void bwputs(char *s) {
 	}
 }
 
-int task(void) {
+void debug(unsigned int a, unsigned int b, unsigned int c) {
+	bwputs("debug halt\n");
+	while(1);
+}
+
+int do_nothing_task(void) {
+	while(1) {
+		bwputs("do nothing\n");
+	}
+	return 0;
+}
+
+int fork_task(void) {
 	int x;
 	while(1) {
 		bwputs("task\n");
 		x = fork();
 		if(x == 0) {
-			bwputs("I am the child\n");
+			while(1) bwputs("child\n");
 		} else if(x > 0) {
-			bwputs("I am the parent\n");
+			bwputs("parent\n");
 		} else if(x < 0) {
-			bwputs("Something went wrong\n");
-			debug(x,0,0);
+			while(1) bwputs("fork error\n");
 		}
 	}
 	return 0;
@@ -61,11 +72,6 @@ void *memcpy(void* dest, void *src, size_t size) {
 	return dest;
 }
 
-void debug(unsigned int a, unsigned int b, unsigned int c) {
-	bwputs("debug halt\n");
-	while(1);
-}
-
 unsigned int _fork(unsigned int stacks[][STACK_SIZE], unsigned int *procs[], unsigned int parent, unsigned int next_pid) {
 	unsigned int offset;
 	bwputs("_fork\n");
@@ -87,7 +93,13 @@ int main(void) {
 	unsigned int n = 0; /* the next available stack. n should never be >= NUM_STACKS */
 	unsigned int active = 0;
 
-	procs[n++] = init_process(user_stack[n],STACK_SIZE,&task);
+	/* initialize the hardware timer */
+	*(PIC + VIC_INTENABLE) = PIC_TIMER01;
+	*TIMER0 = 10000;
+	*(TIMER0 + TIMER_CONTROL) = TIMER_EN | TIMER_32BIT | TIMER_PERIODIC | TIMER_INTEN;
+
+	/* start running tasks */
+	procs[n++] = init_process(user_stack[n],STACK_SIZE,&fork_task);
 	while(1) {
 		/* choose a process to run */
 		active = scheduler(procs, n, active);
@@ -98,13 +110,20 @@ int main(void) {
 
 		/* handle the interrupt */
 		unsigned int val = procs[active][2+7]; /* the interrupt value */
-		if(val == &yield) {
+		if(val == PIC) {
+			bwputs("hardware interrupt\n");
+			if(*PIC & PIC_TIMER01) {
+				if(*(TIMER0 + TIMER_MIS)) {
+					bwputs("  timer0\n");
+					*(TIMER0 + TIMER_INTCLR)  = 1;
+				}
+			}
+		} else if(val == &yield) {
 			bwputs("yield\n");
 		} else if(val == &fork) {
 			n = _fork(user_stack, procs, active, n);
 			bwputs("fork\n");
 		}
 	}
-
 	return 0;
 }

@@ -3,10 +3,17 @@
 .global _start
 _start:
 
-	/* set up the interrupt handler */
+	/* set up the software interrupt handler */
 	mov r0, #0x08
-	ldr r1, instr
-	ldr r2, addr
+	ldr r1, soft
+	ldr r2, soft_addr
+	str r1, [r0, #0x0]
+	str r2, [r0, #0x4] /* the address of the interrupt handler needs to be stored at a known location */
+
+	/* set up the hardware interrupt handler */
+	mov r0, #0x18
+	ldr r1, hard
+	ldr r2, hard_addr
 	str r1, [r0, #0x0]
 	str r2, [r0, #0x4] /* the address of the interrupt handler needs to be stored at a known location */
 
@@ -17,10 +24,12 @@ _start:
 	bl main
 
 	/* helpers */
-	instr: ldr pc, addr
-	addr: .word interrupt_handler
+	soft: ldr pc, soft_addr
+	soft_addr: .word software_interrupt
+	hard: ldr pc, hard_addr
+	hard_addr: .word hardware_interrupt
 
-interrupt_handler:
+software_interrupt:
 	save_user_state:
 		msr CPSR_c, #0xDF /* system mode */
 		push {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
@@ -34,8 +43,32 @@ interrupt_handler:
 		pop {r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
 
 	bx lr
-	b activate
+
+debug:
 	loop: b loop
+
+hardware_interrupt:
+	/* push r7 and lr onto user stack */
+	msr CPSR_c, #0xDF /* system mode */
+	push {r7}
+	/* get lr and -4 from irq mode*/
+	msr CPSR_c, #0xD2 /* irq mode */
+	sub r7, lr, #0x4
+	/* push th lr-4 onto user stack */
+	msr CPSR_c, #0xDF /* system mode */
+	push {r7}
+	/* set supervisor mode lr to restore */
+	msr CPSR_c, #0xD3 /* supervisor mode */
+	ldr lr, =restore
+	/* set r7 to PIC */
+	ldr r7, =0x10140000 /* PIC address */
+	/* run sowftware_interrupt which does the rest of the work */
+	b software_interrupt
+	/* THIS WILL RUN IN USER MODE WITH INTERUPTS AND EVERYTHING */
+	restore:
+		pop {lr}
+		pop {r7}
+		bx lr
 
 /* entering user mode */
 .type activeate, %function
@@ -67,7 +100,7 @@ activate:
 .global yield
 yield:
 	push {r7}
-	ldr r7 ,=yield
+	ldr r7, =yield
 	svc #0x0
 	pop {r7}
 	bx lr
@@ -76,7 +109,7 @@ yield:
 .global fork
 fork:
 	push {r7}
-	ldr r7 ,=fork
+	ldr r7, =fork
 	svc #0x0
 	pop {r7}
 	bx lr
