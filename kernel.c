@@ -1,6 +1,6 @@
 #include "versatilepb.h"
 #include "stddef.h"
-#include "asm.h"
+#include "syscall.h"
 
 #define NUM_STACKS 10
 #define STACK_SIZE 1024
