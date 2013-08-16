@@ -41,7 +41,7 @@ int fork_task(void) {
 	return 0;
 }
 /*
-initialize a process given its stack
+	initialize a process given its stack
 	returns the pointer to the top of the stack (needed by activate)
 */
 unsigned int *init_process(unsigned int *stack, unsigned int size, int (*task)(void)) {
@@ -115,7 +115,7 @@ int main(void) {
 			if(*PIC & PIC_TIMER01) {
 				if(*(TIMER0 + TIMER_MIS)) {
 					bwputs("  timer0\n");
-					*(TIMER0 + TIMER_INTCLR)  = 1;
+					*(TIMER0 + TIMER_INTCLR) = 1;
 				}
 			}
 		} else if(val == &yield) {
