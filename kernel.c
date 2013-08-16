@@ -123,6 +123,10 @@ int main(void) {
 		} else if(val == &fork) {
 			n = _fork(user_stack, procs, active, n);
 			bwputs("fork\n");
+		} else if(val == &send) {
+			bwputs("send\n");
+		} else {
+			bwputs("UNKNOWN SYSCALL\n");
 		}
 	}
 	return 0;
