@@ -99,7 +99,8 @@ int main(void) {
 	*(TIMER0 + TIMER_CONTROL) = TIMER_EN | TIMER_32BIT | TIMER_PERIODIC | TIMER_INTEN;
 
 	/* start running tasks */
-	procs[n++] = init_process(user_stack[n],STACK_SIZE,&fork_task);
+	procs[n] = init_process(user_stack[n],STACK_SIZE,&first_task);
+	n++;
 	while(1) {
 		/* choose a process to run */
 		active = scheduler(procs, n, active);
