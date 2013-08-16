@@ -40,6 +40,14 @@ int fork_task(void) {
 	}
 	return 0;
 }
+
+int first_task(void) {
+	while(1) {
+		bwputs("sending\n");
+		yield();
+	}
+}
+
 /*
 	initialize a process given its stack
 	returns the pointer to the top of the stack (needed by activate)
