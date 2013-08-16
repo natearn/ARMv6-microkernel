@@ -113,3 +113,12 @@ fork:
 	svc #0x0
 	pop {r7}
 	bx lr
+
+.type send, %function
+.global send
+send:
+	push {r7}
+	ldr r7, =send
+	svc #0x0
+	pop {r7}
+	bx lr
