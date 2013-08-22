@@ -64,11 +64,12 @@ hardware_interrupt:
 	ldr r7, =0x10140000 /* PIC address */
 	/* run sowftware_interrupt which does the rest of the work */
 	b software_interrupt
+
 	/* THIS WILL RUN IN USER MODE WITH INTERUPTS AND EVERYTHING */
 	restore:
-		pop {lr}
+		add sp, sp, #0x4
 		pop {r7}
-		bx lr
+		ldr pc, [sp, #-0x8]
 
 /* entering user mode */
 .type activeate, %function
