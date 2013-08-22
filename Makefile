@@ -15,3 +15,5 @@ kernel.elf: kernel.o bootstrap.o
 
 run: kernel.elf 
 	qemu-system-arm -M versatilepb -cpu arm1176 -nographic -kernel kernel.elf
+clean:
+	$(RM) *.o *.elf
