@@ -115,11 +115,20 @@ fork:
 	pop {r7}
 	bx lr
 
-.type send, %function
-.global send
-send:
+.type write, %function
+.global write
+write:
 	push {r7}
-	ldr r7, =send
+	ldr r7, =write
+	svc #0x0
+	pop {r7}
+	bx lr
+
+.type read, %function
+.global read
+read:
+	push {r7}
+	ldr r7, =read
 	svc #0x0
 	pop {r7}
 	bx lr

@@ -42,9 +42,12 @@ int fork_task(void) {
 }
 
 int first_task(void) {
+	unsigned int buf;
 	while(1) {
-		bwputs("sending\n");
-		yield();
+		bwputs("writing\n");
+		write(0,4);
+		bwputs("reading\n");
+		read(&buf);
 	}
 }
 
@@ -132,8 +135,10 @@ int main(void) {
 		} else if(val == &fork) {
 			n = _fork(user_stack, procs, active, n);
 			bwputs("fork\n");
-		} else if(val == &send) {
-			bwputs("send\n");
+		} else if(val == &write) {
+			bwputs("write\n");
+		} else if(val == &read) {
+			bwputs("read\n");
 		} else {
 			bwputs("UNKNOWN SYSCALL\n");
 		}
