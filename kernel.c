@@ -8,8 +8,10 @@
 
 struct Process {
 	unsigned int stack[STACK_SIZE];
-	unsigned int queue[QUEUE_SIZE];
 	unsigned int *stackptr;
+	unsigned int msgs[QUEUE_SIZE];
+	unsigned int mstart;
+	unsigned int mend;
 	unsigned int blocked; /* updgrade this to status when there is more than 2 */
 };
 
@@ -66,6 +68,9 @@ int first_task(void) {
 */
 unsigned int *init_process(struct Process *proc, unsigned int size, int (*task)(void)) {
 	/* this is necessary to run something in user mode */
+	proc->blocked = 0;
+	proc->qstart = 0;
+	proc->qend = 0;
 	proc->stack[size-16] = (unsigned int)task; /* (pc) program counter */
 	proc->stack[size-15] = 0x10; /* (SPSR) saved state */
 	return proc->stack + size - 16;
