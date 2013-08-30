@@ -1,19 +1,8 @@
 #include "versatilepb.h"
 #include "stddef.h"
+#include "kernel.h"
+#include "queue.h"
 #include "syscall.h"
-
-#define NUM_STACKS 10
-#define STACK_SIZE 1024
-#define QUEUE_SIZE 256
-
-struct Process {
-	unsigned int stack[STACK_SIZE];
-	unsigned int *stackptr;
-	unsigned int msgs[QUEUE_SIZE];
-	unsigned int mstart;
-	unsigned int mend;
-	unsigned int blocked; /* updgrade this to status when there is more than 2 */
-};
 
 void bwputs(char *s) {
 	while(*s) {
@@ -36,29 +25,24 @@ int do_nothing_task(void) {
 	return 0;
 }
 
-int fork_task(void) {
-	int x;
-	while(1) {
-		bwputs("task\n");
-		x = fork();
-		if(x == 0) {
-			while(1) bwputs("child\n");
-		} else if(x > 0) {
-			bwputs("parent\n");
-		} else if(x < 0) {
-			while(1) bwputs("fork error\n");
-		}
-	}
-	return 0;
-}
-
 int first_task(void) {
+	int x;
 	unsigned int buf;
-	while(1) {
-		bwputs("writing\n");
-		write(0,4);
-		bwputs("reading\n");
-		read(&buf);
+	x = fork();
+	if(x == 0) {
+		while(1) {
+			bwputs("reading\n");
+			read(&buf);
+		}
+	} else if(x > 0) {
+		fork();
+		while(1) {
+			bwputs("writing\n");
+			write(x,7);
+		}
+	} else {
+		bwputs("fork error\n");
+		while(1);
 	}
 }
 
@@ -69,18 +53,26 @@ int first_task(void) {
 unsigned int *init_process(struct Process *proc, unsigned int size, int (*task)(void)) {
 	/* this is necessary to run something in user mode */
 	proc->blocked = 0;
-	proc->qstart = 0;
-	proc->qend = 0;
 	proc->stack[size-16] = (unsigned int)task; /* (pc) program counter */
 	proc->stack[size-15] = 0x10; /* (SPSR) saved state */
 	return proc->stack + size - 16;
 }
 
 /* basic */
+unsigned int nextpid(unsigned int pid, unsigned int num_pids) {
+	if(pid == num_pids - 1) return 0;
+	return pid + 1;
+}
 unsigned int scheduler(struct Process procs[], unsigned int num_procs, unsigned int active_proc) {
-	(void) procs;
-	if(num_procs-1 == active_proc) return 0;
-	return active_proc + 1;
+	unsigned int pid;
+	for(pid = nextpid(active_proc,num_procs); procs[pid].blocked; pid = nextpid(pid,num_procs)) {
+		/* assume that pid is blocked */
+		if(pid == active_proc) {
+			bwputs("DEADLOCK\n");
+			debug(pid,0,0);
+		}
+	}
+	return pid;
 }
 
 void *memcpy(void* dest, void *src, size_t size) {
@@ -108,11 +100,46 @@ unsigned int _fork(struct Process procs[], unsigned int parent_pid, unsigned int
 	return next_pid + 1;
 }
 
+unsigned int _read(struct Process *proc) {
+	struct Process *wakeproc;
+	if(QUEUE_LEN(proc->msgs) == 0) {
+		/* the queue is empty */
+		proc->blocked = (unsigned int)&_read;
+	} else {
+		QUEUE_POP(proc->msgs,proc->stackptr[2+0]);
+		/* unblock writers */
+		if(QUEUE_LEN(proc->writers) > 0) {
+			QUEUE_POP(proc->writers,wakeproc);
+			wakeproc->blocked = 0;
+			_write(wakeproc,proc);
+bwputs("unblocked && ");
+		}
+	}
+	return proc->blocked;
+}
+
+unsigned int _write(struct Process *sender, struct Process *receiver) {
+	if(QUEUE_LEN(receiver->msgs) == QUEUE_SIZE) {
+		/* the queue is full */
+		sender->blocked = (unsigned int)&_write;
+		QUEUE_PUSH(receiver->writers,sender);
+	} else {
+		QUEUE_PUSH(receiver->msgs,sender->stackptr[2+1]);
+		/* unblock reader */
+		if(receiver->blocked == (unsigned int)&_read) {
+			receiver->blocked = 0;
+			_read(receiver);
+bwputs("unblocked && ");
+		}
+	}
+	return sender->blocked;
+}
+
 int main(void) {
 	struct Process procs[NUM_STACKS];
 	unsigned int num_procs = 0; /* the next available stack. n should never be >= NUM_STACKS */
 	unsigned int active_proc = 0;
-	unsigned int ic; /* interrupt condition */
+	unsigned int val; /* interrupt condition */
 
 	/* initialize the hardware timer */
 	*(PIC + VIC_INTENABLE) = PIC_TIMER01;
@@ -131,8 +158,8 @@ int main(void) {
 		procs[active_proc].stackptr = activate(procs[active_proc].stackptr);
 
 		/* handle the interrupt */
-		ic = procs[active_proc].stackptr[2+7]; /* the interrupt value */
-		if(ic == (unsigned int)PIC) {
+		val = procs[active_proc].stackptr[2+7]; /* the interrupt value */
+		if(val == (unsigned int)PIC) {
 			bwputs("hardware interrupt\n");
 			if(*PIC & PIC_TIMER01) {
 				if(*(TIMER0 + TIMER_MIS)) {
@@ -140,15 +167,26 @@ int main(void) {
 					*(TIMER0 + TIMER_INTCLR) = 1;
 				}
 			}
-		} else if(ic == (unsigned int)&yield) {
+		} else if(val == (unsigned int)&yield) {
 			bwputs("yield\n");
-		} else if(ic == (unsigned int)&fork) {
+		} else if(val == (unsigned int)&fork) {
 			num_procs = _fork(procs, active_proc, num_procs);
 			bwputs("fork\n");
-		} else if(ic == (unsigned int)&write) {
-			bwputs("write\n");
-		} else if(ic == (unsigned int)&read) {
-			bwputs("read\n");
+		} else if(val == (unsigned int)&write) {
+			bwputs("write :: ");
+			val = procs[active_proc].stackptr[2+0]; /* pid of receiver */
+			if(_write(&(procs[active_proc]),&(procs[val]))) {
+				bwputs("blocked\n");
+			} else {
+				bwputs("success\n");
+			}
+		} else if(val == (unsigned int)&read) {
+			bwputs("read :: ");
+			if(_read(&(procs[active_proc]))) {
+				bwputs("blocked\n");
+			} else {
+				bwputs("success\n");
+			}
 		} else {
 			bwputs("UNKNOWN SYSCALL\n");
 		}

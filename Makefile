@@ -11,7 +11,9 @@ LDFLAGS=-N -Ttext=0x10000
 .s.o:
 	$(CC) $(CFLAGS) -o $@ -c $^
 
-kernel.elf: kernel.o bootstrap.o 
+kernel.o : kernel.h queue.h syscall.h
+
+kernel.elf: kernel.o bootstrap.o
 
 run: kernel.elf 
 	qemu-system-arm -M versatilepb -cpu arm1176 -nographic -kernel kernel.elf
