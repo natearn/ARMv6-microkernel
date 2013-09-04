@@ -25,6 +25,14 @@ int do_nothing_task(void) {
 	return 0;
 }
 
+int yield_task(void) {
+	while(1) {
+		bwputs("yield\n");
+		yield();
+	}
+	return 0;
+}
+
 int first_task(void) {
 	int x;
 	unsigned int buf;
@@ -147,7 +155,7 @@ int main(void) {
 	*(TIMER0 + TIMER_CONTROL) = TIMER_EN | TIMER_32BIT | TIMER_PERIODIC | TIMER_INTEN;
 
 	/* start running tasks */
-	procs[num_procs].stackptr = init_process(&(procs[num_procs]),STACK_SIZE,&first_task);
+	procs[num_procs].stackptr = init_process(&(procs[num_procs]),STACK_SIZE,&yield_task);
 	num_procs++;
 	while(1) {
 		/* choose a process to run */

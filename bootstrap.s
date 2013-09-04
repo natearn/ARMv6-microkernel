@@ -32,7 +32,7 @@ _start:
 software_interrupt:
 	save_user_state:
 		msr CPSR_c, #0xDF /* system mode */
-		push {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
+		push {r0-r10,fp,ip,lr}
 		mov r0, sp
 		msr CPSR_c, #0xD3 /* supervisor mode */
 		mov r1, lr
@@ -40,7 +40,7 @@ software_interrupt:
 		stmfd r0!, {r1,r2}
 
 	restore_kernel_state:
-		pop {r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
+		pop {r1-r10,fp,ip,lr}
 
 	bx lr
 
@@ -80,7 +80,7 @@ activate:
 	/* ldmfd r0!, {r1,r2,...} <- Same as pop, but use r0 as the stack pointer */
 
 	save_kernel_state:
-		push {r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
+		push {r1-r10,fp,ip,lr}
 
 	restore_user_state:
 		/* first restore named registers */
@@ -91,7 +91,7 @@ activate:
 		/* now set the stack pointer in system mode (which is shared with user mode) and restore the numbered registers */
 		msr CPSR_c, #0xDF /* system mode */
 		mov sp, r0
-		pop {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,fp,ip,lr}
+		pop {r0-r10,fp,ip,lr}
 		msr CPSR_c, #0xD3 /* supervisor mode */
 
 	/* finally switch to user mode and run the program */
