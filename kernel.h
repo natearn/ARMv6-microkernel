@@ -5,7 +5,6 @@
 
 #define NUM_STACKS 16
 #define STACK_SIZE 1024
-#define QUEUE_SIZE 1
 
 struct Process {
 	unsigned int stack[STACK_SIZE];

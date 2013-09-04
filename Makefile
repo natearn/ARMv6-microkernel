@@ -11,7 +11,7 @@ LDFLAGS=-N -Ttext=0x10000
 .s.o:
 	$(CC) $(CFLAGS) -o $@ -c $^
 
-kernel.o : kernel.h queue.h syscall.h
+kernel.o: kernel.h queue.h syscall.h
 
 kernel.elf: kernel.o bootstrap.o
 

@@ -60,6 +60,8 @@ int first_task(void) {
 */
 unsigned int *init_process(struct Process *proc, unsigned int size, int (*task)(void)) {
 	/* this is necessary to run something in user mode */
+	init_queue(&(proc->msgs));
+	init_queue(&(proc->writers));
 	proc->blocked = 0;
 	proc->stack[size-16] = (unsigned int)task; /* (pc) program counter */
 	proc->stack[size-15] = 0x10; /* (SPSR) saved state */
