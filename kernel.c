@@ -12,6 +12,35 @@ void bwputs(char *s) {
 	}
 }
 
+char digit(unsigned int n) {
+	unsigned int x = n / 10 * 10;
+	unsigned int d = n - x;
+	switch(d) {
+		case 0: return '0';
+		case 1: return '1';
+		case 2: return '2';
+		case 3: return '3';
+		case 4: return '4';
+		case 5: return '5';
+		case 6: return '6';
+		case 7: return '7';
+		case 8: return '8';
+		case 9: return '9';
+	}
+	return '?';
+}
+
+void nputs(unsigned int n) {
+	unsigned int x;
+	char c[1];
+	do {
+		x = n / 10 * 10;
+		c[0] = digit(n-x);
+		bwputs(c);
+		n = x / 10;
+	} while(x > 0);
+}
+
 void debug(unsigned int a, unsigned int b, unsigned int c) {
 	(void) a, (void) b, (void) c;
 	bwputs("debug halt\n");
@@ -40,13 +69,13 @@ int first_task(void) {
 	if(x == 0) {
 		while(1) {
 			bwputs("reading\n");
-			read(&buf);
+			read(sizeof(buf),&buf);
 		}
 	} else if(x > 0) {
-		fork();
 		while(1) {
 			bwputs("writing\n");
-			write(x,7);
+			buf = 7;
+			write(x,sizeof(buf),&buf);
 		}
 	} else {
 		bwputs("fork error\n");
@@ -60,8 +89,8 @@ int first_task(void) {
 */
 unsigned int *init_process(struct Process *proc, unsigned int size, int (*task)(void)) {
 	/* this is necessary to run something in user mode */
-	init_queue(&(proc->msgs));
-	init_queue(&(proc->writers));
+	PIPE_INIT(proc->msgs);
+	QUEUE_INIT(proc->writers);
 	proc->blocked = 0;
 	proc->stack[size-16] = (unsigned int)task; /* (pc) program counter */
 	proc->stack[size-15] = 0x10; /* (SPSR) saved state */
@@ -112,34 +141,54 @@ unsigned int _fork(struct Process procs[], unsigned int parent_pid, unsigned int
 
 unsigned int _read(struct Process *proc) {
 	struct Process *wakeproc;
-	if(QUEUE_LEN(proc->msgs) == 0) {
-		/* the queue is empty */
+	int bytes = (int)proc->stackptr[2+0];
+	char *buf = (char*)proc->stackptr[2+1];
+	int i;
+bwputs("-> _read(");
+	if(PIPE_LEN(proc->msgs) < bytes) {
+nputs(PIPE_LEN(proc->msgs));
+bwputs(",block) ");
+		/* not enough data to complete the read */
 		proc->blocked = (unsigned int)&_read;
 	} else {
-		QUEUE_POP(proc->msgs,proc->stackptr[2+0]);
+		for(i = 0; i < bytes; i++) {
+			PIPE_POP(proc->msgs,buf[i]);
+		}
 		/* unblock writers */
 		if(QUEUE_LEN(proc->writers) > 0) {
+bwputs("unblock) ");
 			QUEUE_POP(proc->writers,wakeproc);
 			wakeproc->blocked = 0;
 			_write(wakeproc,proc);
-bwputs("unblocked && ");
+		} else {
+bwputs("success) ");
 		}
 	}
 	return proc->blocked;
 }
 
 unsigned int _write(struct Process *sender, struct Process *receiver) {
-	if(QUEUE_LEN(receiver->msgs) == QUEUE_SIZE) {
+	int bytes = (int)sender->stackptr[2+1];
+	char *buf = (char*)sender->stackptr[2+2];
+	int i;
+bwputs("-> _write(");
+	if(BUF_SIZE - PIPE_LEN(receiver->msgs) < bytes) {
+nputs(PIPE_LEN(receiver->msgs));
+bwputs(",block) ");
 		/* the queue is full */
 		sender->blocked = (unsigned int)&_write;
 		QUEUE_PUSH(receiver->writers,sender);
 	} else {
-		QUEUE_PUSH(receiver->msgs,sender->stackptr[2+1]);
+		for(i = 0; i < bytes; i++) {
+			PIPE_PUSH(receiver->msgs,buf[i]);
+		}
 		/* unblock reader */
 		if(receiver->blocked == (unsigned int)&_read) {
+bwputs("unblock) ");
 			receiver->blocked = 0;
 			_read(receiver);
-bwputs("unblocked && ");
+		} else {
+bwputs("success) ");
 		}
 	}
 	return sender->blocked;
@@ -157,7 +206,7 @@ int main(void) {
 	*(TIMER0 + TIMER_CONTROL) = TIMER_EN | TIMER_32BIT | TIMER_PERIODIC | TIMER_INTEN;
 
 	/* start running tasks */
-	procs[num_procs].stackptr = init_process(&(procs[num_procs]),STACK_SIZE,&yield_task);
+	procs[num_procs].stackptr = init_process(&(procs[num_procs]),STACK_SIZE,&first_task);
 	num_procs++;
 	while(1) {
 		/* choose a process to run */
@@ -183,19 +232,19 @@ int main(void) {
 			num_procs = _fork(procs, active_proc, num_procs);
 			bwputs("fork\n");
 		} else if(val == (unsigned int)&write) {
-			bwputs("write :: ");
+			bwputs("write ");
 			val = procs[active_proc].stackptr[2+0]; /* pid of receiver */
 			if(_write(&(procs[active_proc]),&(procs[val]))) {
-				bwputs("blocked\n");
+				bwputs("-> blocked\n");
 			} else {
-				bwputs("success\n");
+				bwputs("-> success\n");
 			}
 		} else if(val == (unsigned int)&read) {
-			bwputs("read :: ");
+			bwputs("read ");
 			if(_read(&(procs[active_proc]))) {
-				bwputs("blocked\n");
+				bwputs("-> blocked\n");
 			} else {
-				bwputs("success\n");
+				bwputs("-> success\n");
 			}
 		} else {
 			bwputs("UNKNOWN SYSCALL\n");
