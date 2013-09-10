@@ -1,7 +1,7 @@
 #include "versatilepb.h"
 #include "stddef.h"
 #include "kernel.h"
-#include "queue.h"
+#include "pipe.h"
 #include "syscall.h"
 
 void bwputs(char *s) {
@@ -89,7 +89,7 @@ int first_task(void) {
 */
 unsigned int *init_process(struct Process *proc, unsigned int size, int (*task)(void)) {
 	/* this is necessary to run something in user mode */
-	PIPE_INIT(proc->msgs);
+	pipe_init(&(proc->msgs));
 	QUEUE_INIT(proc->writers);
 	proc->blocked = 0;
 	proc->stack[size-16] = (unsigned int)task; /* (pc) program counter */
@@ -143,17 +143,13 @@ unsigned int _read(struct Process *proc) {
 	struct Process *wakeproc;
 	int bytes = (int)proc->stackptr[2+0];
 	char *buf = (char*)proc->stackptr[2+1];
-	int i;
 bwputs("-> _read(");
-	if(PIPE_LEN(proc->msgs) < bytes) {
-nputs(PIPE_LEN(proc->msgs));
+	if(pipe_pop_safe(&(proc->msgs),bytes,buf)) {
+nputs(pipe_len(&(proc->msgs)));
 bwputs(",block) ");
 		/* not enough data to complete the read */
 		proc->blocked = (unsigned int)&_read;
 	} else {
-		for(i = 0; i < bytes; i++) {
-			PIPE_POP(proc->msgs,buf[i]);
-		}
 		/* unblock writers */
 		if(QUEUE_LEN(proc->writers) > 0) {
 bwputs("unblock) ");
@@ -170,18 +166,14 @@ bwputs("success) ");
 unsigned int _write(struct Process *sender, struct Process *receiver) {
 	int bytes = (int)sender->stackptr[2+1];
 	char *buf = (char*)sender->stackptr[2+2];
-	int i;
 bwputs("-> _write(");
-	if(BUF_SIZE - PIPE_LEN(receiver->msgs) < bytes) {
-nputs(PIPE_LEN(receiver->msgs));
+	if(pipe_push_safe(&(receiver->msgs),bytes,buf)) {
+nputs(pipe_len(&(receiver->msgs)));
 bwputs(",block) ");
 		/* the queue is full */
 		sender->blocked = (unsigned int)&_write;
 		QUEUE_PUSH(receiver->writers,sender);
 	} else {
-		for(i = 0; i < bytes; i++) {
-			PIPE_PUSH(receiver->msgs,buf[i]);
-		}
 		/* unblock reader */
 		if(receiver->blocked == (unsigned int)&_read) {
 bwputs("unblock) ");

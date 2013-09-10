@@ -1,7 +1,8 @@
 #ifndef _KERNEL_H_
 #define _KERNEL_H_
 
-#include "queue.h"
+#include "ringbuffer.h"
+#include "pipe.h"
 #include "stddef.h" /* size_t */
 
 #define NUM_STACKS 16
