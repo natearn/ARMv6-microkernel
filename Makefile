@@ -13,7 +13,7 @@ LDFLAGS=-N -Ttext=0x10000
 
 kernel.o: pipe.o pipe.h kernel.h syscall.h
 
-kernel.elf: kernel.o bootstrap.o pipe.o
+kernel.elf: kernel.o bootstrap.o syscall.o pipe.o
 
 run: kernel.elf 
 	qemu-system-arm -M versatilepb -cpu arm1176 -nographic -kernel kernel.elf
