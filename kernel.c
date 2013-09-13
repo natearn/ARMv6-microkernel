@@ -15,30 +15,21 @@ void bwputs(char *s) {
 char digit(unsigned int n) {
 	unsigned int x = n / 10 * 10;
 	unsigned int d = n - x;
-	switch(d) {
-		case 0: return '0';
-		case 1: return '1';
-		case 2: return '2';
-		case 3: return '3';
-		case 4: return '4';
-		case 5: return '5';
-		case 6: return '6';
-		case 7: return '7';
-		case 8: return '8';
-		case 9: return '9';
-	}
-	return '?';
+	return '0' + d;
 }
 
 void nputs(unsigned int n) {
 	unsigned int x;
-	char c[2] = {'\0','\0'};
+	int i = 30;
+	char c[32];
+	c[31] = '\0';
 	do {
 		x = n / 10 * 10;
-		c[0] = digit(n-x);
-		bwputs(c);
+		c[i] = digit(n-x);
+		i--;
 		n = x / 10;
-	} while(x > 0);
+	} while(x > 0 && i >= 0);
+	bwputs(c + i + 1);
 }
 
 void debug(unsigned int a, unsigned int b, unsigned int c) {
@@ -64,30 +55,30 @@ int yield_task(void) {
 
 int first_task(void) {
 	int x;
-	char buf[20] = {'h','e','l','l','o',' ','w','o','r','l','d'};
-	unsigned int val;
+	char buf[20] = {'h','e','l','l','o',' ','w','o','r','l','d','\0'};
 	size_t amount;
 	x = fork();
 	if(x == 0) {
 		while(1) {
 			bwputs("reading\n");
-			amount = read(sizeof(val),(char*)&val);
+			amount = read(sizeof(buf),buf);
 			bwputs("I received a ");
 			nputs(amount);
 			bwputs("-byte message!\n");
 
-			bwputs("I expected a ");
-			nputs(sizeof(val));
-			bwputs("-byte message!\n");
+			bwputs("I can accept ");
+			nputs(sizeof(buf));
+			bwputs("-byte messages!\n");
 
 			bwputs("The value of my message is: ");
-			nputs(val);
+			buf[amount] = '\0';
+			bwputs(buf);
 			bwputs("\n");
 		}
 	} else if(x > 0) {
 		while(1) {
 			bwputs("writing\n");
-			write(x,5,buf);
+			write(x,9,buf);
 		}
 	} else {
 		bwputs("fork error\n");
