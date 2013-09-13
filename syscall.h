@@ -6,7 +6,7 @@
 unsigned int *activate(unsigned int *stackptr); /* enter into user mode (and execute the "first" program) */
 void yield(void); /* cause a software interrupt */
 int fork(void); /* fork the process */
-int write(unsigned int pid,size_t size,void *msg); /* send a message to another process */
-int read(size_t size,unsigned int *msg); /* receive a message system message */
+int write(unsigned int pid,size_t size,char *msg); /* send a message to another process */
+size_t read(size_t buf_size,char *buf); /* receive a message system message */
 
 #endif

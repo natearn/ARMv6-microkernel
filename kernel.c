@@ -32,7 +32,7 @@ char digit(unsigned int n) {
 
 void nputs(unsigned int n) {
 	unsigned int x;
-	char c[1];
+	char c[2] = {'\0','\0'};
 	do {
 		x = n / 10 * 10;
 		c[0] = digit(n-x);
@@ -64,18 +64,30 @@ int yield_task(void) {
 
 int first_task(void) {
 	int x;
-	unsigned int buf;
+	char buf[20] = {'h','e','l','l','o',' ','w','o','r','l','d'};
+	unsigned int val;
+	size_t amount;
 	x = fork();
 	if(x == 0) {
 		while(1) {
 			bwputs("reading\n");
-			read(sizeof(buf),&buf);
+			amount = read(sizeof(val),(char*)&val);
+			bwputs("I received a ");
+			nputs(amount);
+			bwputs("-byte message!\n");
+
+			bwputs("I expected a ");
+			nputs(sizeof(val));
+			bwputs("-byte message!\n");
+
+			bwputs("The value of my message is: ");
+			nputs(val);
+			bwputs("\n");
 		}
 	} else if(x > 0) {
 		while(1) {
 			bwputs("writing\n");
-			buf = 7;
-			write(x,sizeof(buf),&buf);
+			write(x,5,buf);
 		}
 	} else {
 		bwputs("fork error\n");
@@ -141,15 +153,18 @@ unsigned int _fork(struct Process procs[], unsigned int parent_pid, unsigned int
 
 unsigned int _read(struct Process *proc) {
 	struct Process *wakeproc;
-	int bytes = (int)proc->stackptr[2+0];
+	size_t buf_size = (size_t)proc->stackptr[2+0];
+	size_t msg_size;
 	char *buf = (char*)proc->stackptr[2+1];
 bwputs("-> _read(");
-	if(pipe_pop_safe(&(proc->msgs),bytes,buf)) {
+	msg_size = pipe_pop_message(&(proc->msgs),buf_size,buf);
+	if(msg_size == 0) {
 nputs(pipe_len(&(proc->msgs)));
 bwputs(",block) ");
 		/* not enough data to complete the read */
 		proc->blocked = (unsigned int)&_read;
 	} else {
+		proc->stackptr[2+0] = msg_size; /* return number of bytes in the message */
 		/* unblock writers */
 		if(QUEUE_LEN(proc->writers) > 0) {
 bwputs("unblock) ");
@@ -167,13 +182,14 @@ unsigned int _write(struct Process *sender, struct Process *receiver) {
 	int bytes = (int)sender->stackptr[2+1];
 	char *buf = (char*)sender->stackptr[2+2];
 bwputs("-> _write(");
-	if(pipe_push_safe(&(receiver->msgs),bytes,buf)) {
+	if(pipe_push_message(&(receiver->msgs),bytes,buf)) {
 nputs(pipe_len(&(receiver->msgs)));
 bwputs(",block) ");
 		/* the queue is full */
 		sender->blocked = (unsigned int)&_write;
 		QUEUE_PUSH(receiver->writers,sender);
 	} else {
+		sender->stackptr[2+0] = 0; /* not using return value yet */
 		/* unblock reader */
 		if(receiver->blocked == (unsigned int)&_read) {
 bwputs("unblock) ");
