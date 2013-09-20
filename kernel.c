@@ -40,6 +40,19 @@ void debug(unsigned int a, unsigned int b, unsigned int c) {
 	while(1);
 }
 
+int register_wrapper(int (*task)(void), char *name) {
+	struct NameServerRequest req;
+	struct NameServerResponse res;
+	req.type = REGISTER;
+	req.pid = getpid();
+	strlcpy(req.name,name,NAME_SIZE);
+	write(NAME_SERVER_PID,sizeof(req),(char*)&req);
+	read(sizeof(res),(char*)&res);
+	if(res.status == FAILURE) return 1;
+	return (*task)();
+}
+
+
 int do_nothing_task(void) {
 	while(1) {
 		bwputs("do nothing\n");
