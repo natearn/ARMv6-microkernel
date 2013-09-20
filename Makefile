@@ -11,9 +11,9 @@ LDFLAGS=-N -Ttext=0x10000
 .s.o:
 	$(CC) $(CFLAGS) -o $@ -c $^
 
-kernel.o: pipe.o pipe.h kernel.h syscall.h
+kernel.o: pipe.o nameserver.o string.o pipe.h kernel.h syscall.h nameserver.h string.h
 
-kernel.elf: kernel.o bootstrap.o syscall.o pipe.o
+kernel.elf: kernel.o bootstrap.o syscall.o pipe.o nameserver.o string.o
 
 run: kernel.elf 
 	qemu-system-arm -M versatilepb -cpu arm1176 -nographic -kernel kernel.elf
