@@ -18,6 +18,7 @@ void pipe_seek(struct Pipe *pipe, size_t num_bytes) {
 	char c;
 	for(i=0; i < num_bytes; i++) {
 		RB_POP(*pipe,BUF_SIZE+1,c);
+		(void)c;
 	}
 }
 
