@@ -3,6 +3,8 @@
 #include "kernel.h"
 #include "pipe.h"
 #include "syscall.h"
+#include "nameserver.h"
+#include "string.h"
 
 void bwputs(char *s) {
 	while(*s) {
@@ -54,36 +56,21 @@ int yield_task(void) {
 }
 
 int first_task(void) {
-	int x;
-	char buf[20] = {'h','e','l','l','o',' ','w','o','r','l','d','\0'};
-	size_t amount;
-	x = fork();
-	if(x == 0) {
-		while(1) {
-			bwputs("reading\n");
-			amount = read(sizeof(buf),buf);
-			bwputs("I received a ");
-			nputs(amount);
-			bwputs("-byte message!\n");
-
-			bwputs("I can accept ");
-			nputs(sizeof(buf));
-			bwputs("-byte messages!\n");
-
-			bwputs("The value of my message is: ");
-			buf[amount] = '\0';
-			bwputs(buf);
-			bwputs("\n");
-		}
-	} else if(x > 0) {
-		while(1) {
-			bwputs("writing\n");
-			write(x,9,buf);
-		}
-	} else {
-		bwputs("fork error\n");
-		while(1);
+	unsigned int pid;
+	pid = fork();
+	if(!pid) {
+		name_server_task();
 	}
+	if(pid != NAME_SERVER_PID) {
+		bwputs("name server PID: ");
+		nputs(pid);
+		bwputs("\n");
+		return 1;
+	}
+	while(1) yield();
+	return 0;
+}
+
 }
 
 /*
