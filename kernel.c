@@ -245,6 +245,8 @@ int main(void) {
 			} else {
 				bwputs("-> success\n");
 			}
+		} else if(val == (unsigned int)&getpid) {
+			procs[active_proc].stackptr[2+0] = active_proc;
 		} else {
 			bwputs("UNKNOWN SYSCALL\n");
 		}

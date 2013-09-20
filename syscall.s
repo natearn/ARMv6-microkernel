@@ -33,3 +33,12 @@ read:
 	svc #0x0
 	pop {r7}
 	bx lr
+
+.type getpid, %function
+.global getpid
+getpid:
+	push {r7}
+	ldr r7, =getpid
+	svc #0x0
+	pop {r7}
+	bx lr
