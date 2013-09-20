@@ -84,6 +84,13 @@ int first_task(void) {
 	return 0;
 }
 
+int the_abyss(void) {
+	while(1) {
+		bwputs("process ");
+		nputs(getpid());
+		bwputs("has entered the abyss");
+	}
+	return 0;
 }
 
 /*
@@ -97,6 +104,7 @@ unsigned int *init_process(struct Process *proc, unsigned int size, int (*task)(
 	proc->blocked = 0;
 	proc->stack[size-16] = (unsigned int)task; /* (pc) program counter */
 	proc->stack[size-15] = 0x10; /* (SPSR) saved state */
+	proc->stack[size-14] = &the_abyss; /* The Abyss */
 	return proc->stack + size - 16;
 }
 
@@ -147,23 +155,17 @@ unsigned int _read(struct Process *proc) {
 	size_t buf_size = (size_t)proc->stackptr[2+0];
 	size_t msg_size;
 	char *buf = (char*)proc->stackptr[2+1];
-bwputs("-> _read(");
 	msg_size = pipe_pop_message(&(proc->msgs),buf_size,buf);
 	if(msg_size == 0) {
-nputs(pipe_len(&(proc->msgs)));
-bwputs(",block) ");
 		/* not enough data to complete the read */
 		proc->blocked = (unsigned int)&_read;
 	} else {
 		proc->stackptr[2+0] = msg_size; /* return number of bytes in the message */
 		/* unblock writers */
 		if(QUEUE_LEN(proc->writers) > 0) {
-bwputs("unblock) ");
 			QUEUE_POP(proc->writers,wakeproc);
 			wakeproc->blocked = 0;
 			_write(wakeproc,proc);
-		} else {
-bwputs("success) ");
 		}
 	}
 	return proc->blocked;
@@ -172,10 +174,7 @@ bwputs("success) ");
 unsigned int _write(struct Process *sender, struct Process *receiver) {
 	int bytes = (int)sender->stackptr[2+1];
 	char *buf = (char*)sender->stackptr[2+2];
-bwputs("-> _write(");
 	if(pipe_push_message(&(receiver->msgs),bytes,buf)) {
-nputs(pipe_len(&(receiver->msgs)));
-bwputs(",block) ");
 		/* the queue is full */
 		sender->blocked = (unsigned int)&_write;
 		QUEUE_PUSH(receiver->writers,sender);
@@ -183,11 +182,8 @@ bwputs(",block) ");
 		sender->stackptr[2+0] = 0; /* not using return value yet */
 		/* unblock reader */
 		if(receiver->blocked == (unsigned int)&_read) {
-bwputs("unblock) ");
 			receiver->blocked = 0;
 			_read(receiver);
-		} else {
-bwputs("success) ");
 		}
 	}
 	return sender->blocked;
@@ -209,24 +205,23 @@ int main(void) {
 	num_procs++;
 	while(1) {
 		/* choose a process to run */
-		active_proc = scheduler(procs, num_procs, active_proc);
-
+		active_proc = scheduler(procs, num_procs, active_proc); 
 		/* run the process for some time */
-		bwputs("activate\n");
+		/* bwputs("activate\n"); */
 		procs[active_proc].stackptr = activate(procs[active_proc].stackptr);
 
 		/* handle the interrupt */
 		val = procs[active_proc].stackptr[2+7]; /* the interrupt value */
 		if(val == (unsigned int)PIC) {
-			bwputs("hardware interrupt\n");
+			/* bwputs("hardware interrupt\n"); */
 			if(*PIC & PIC_TIMER01) {
 				if(*(TIMER0 + TIMER_MIS)) {
-					bwputs("  timer0\n");
+					/* bwputs("  timer0\n"); */
 					*(TIMER0 + TIMER_INTCLR) = 1;
 				}
 			}
 		} else if(val == (unsigned int)&yield) {
-			bwputs("yield\n");
+			/* bwputs("yield\n"); */
 		} else if(val == (unsigned int)&fork) {
 			num_procs = _fork(procs, active_proc, num_procs);
 			bwputs("fork\n");
