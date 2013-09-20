@@ -54,15 +54,14 @@ int register_wrapper(int (*task)(void), char *name) {
 
 
 int do_nothing_task(void) {
-	while(1) {
-		bwputs("do nothing\n");
-	}
+	bwputs("do nothing\n");
+	while(1);
 	return 0;
 }
 
 int yield_task(void) {
+	bwputs("yield\n");
 	while(1) {
-		bwputs("yield\n");
 		yield();
 	}
 	return 0;
@@ -80,16 +79,7 @@ int first_task(void) {
 		bwputs("\n");
 		return 1;
 	}
-	while(1) yield();
-	return 0;
-}
-
-int the_abyss(void) {
-	while(1) {
-		bwputs("process ");
-		nputs(getpid());
-		bwputs("has entered the abyss");
-	}
+	yield_task();
 	return 0;
 }
 
@@ -104,7 +94,7 @@ unsigned int *init_process(struct Process *proc, unsigned int size, int (*task)(
 	proc->blocked = 0;
 	proc->stack[size-16] = (unsigned int)task; /* (pc) program counter */
 	proc->stack[size-15] = 0x10; /* (SPSR) saved state */
-	proc->stack[size-14] = &the_abyss; /* The Abyss */
+	proc->stack[size-14] = &yield_task;
 	return proc->stack + size - 16;
 }
 
